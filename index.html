@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 NASDAQ Opportunity Indicator - Live</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 { font-size: 36px; margin-bottom: 10px; }
+        .header p { font-size: 18px; opacity: 0.9; }
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .status-item { display: flex; align-items: center; gap: 10px; }
+        .live-dot {
+            width: 12px; height: 12px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .content { padding: 40px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        .card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid #667eea;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card.strong-buy { border-left-color: #28a745; }
+        .card.buy { border-left-color: #28a745; }
+        .card.hold { border-left-color: #ffc107; }
+        .card.sell { border-left-color: #fd7e14; }
+        .card.strong-sell { border-left-color: #dc3545; }
+        
+        .ticker { font-size: 28px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .signal-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+        .bg-green { background: #28a745; color: white; }
+        .bg-yellow { background: #ffc107; color: #333; }
+        .bg-orange { background: #fd7e14; color: white; }
+        .bg-red { background: #dc3545; color: white; }
+        .bg-gray { background: #6c757d; color: white; }
+        
+        .metric { margin: 12px 0; }
+        .metric-label { color: #666; font-size: 14px; margin-bottom: 5px; }
+        .metric-value { font-size: 22px; font-weight: bold; color: #333; }
+        .metric-value.positive { color: #28a745; }
+        .metric-value.negative { color: #dc3545; }
+        
+        .entry-box {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .entry-box h4 { color: #667eea; margin-bottom: 10px; font-size: 14px; }
+        .entry-box p { margin: 6px 0; font-size: 13px; }
+        .entry-row { display: flex; justify-content: space-between; margin: 6px 0; }
+        .entry-label { color: #666; }
+        .entry-value { font-weight: bold; color: #333; }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .refresh-btn:hover { transform: translateY(-2px); }
+        .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 24px;
+            color: #666;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .table-container { margin-top: 40px; overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th { background: #667eea; color: white; padding: 15px; text-align: left; font-weight: bold; }
+        td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; }
+        tr:hover { background: #f8f9fa; }
+        
+        .api-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+        }
+        .api-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .api-input:focus { outline: none; border-color: #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 NASDAQ Opportunity Indicator</h1>
+            <p>Real-time momentum signals & optimal entry points • Auto-updates every 10 seconds</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="live-dot"></div>
+                <span><strong>LIVE</strong> • Updates every 10 seconds</span>
+            </div>
+            <div class="status-item">
+                <span id="lastUpdate">Last update: --:--:--</span>
+                <button class="refresh-btn" onclick="fetchData()" id="refreshBtn">🔄 Refresh Now</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div id="apiSection" class="api-warning">
+                <h3>🔑 Enter Your Perplexity API Key</h3>
+                <p style="margin: 10px 0;">Get your free API key: <a href="https://www.perplexity.ai/settings/api" target="_blank" style="color: #667eea;">https://www.perplexity.ai/settings/api</a></p>
+                <input type="password" id="apiKey" class="api-input" placeholder="Paste your API key here (pplx-...)">
+                <button class="refresh-btn" onclick="saveApiKey()">💾 Save & Start</button>
+            </div>
+            
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <div>Scanning market...</div>
+            </div>
+            
+            <div id="error" class="api-warning" style="display: none; background: #f8d7da; border-left-color: #dc3545;">
+                <h3>❌ Error</h3>
+                <p id="errorMsg"></p>
+            </div>
+            
+            <div id="signalsGrid" class="grid"></div>
+            
+            <div class="table-container">
+                <h3 style="margin-bottom: 20px;">📊 All Signals</h3>
+                <table id="signalsTable">
+                    <thead>
+                        <tr>
+                            <th>Ticker</th>
+                            <th>Signal</th>
+                            <th>Score</th>
+                            <th>Price</th>
+                            <th>Change</th>
+                            <th>Opportunity</th>
+                            <th>Entry Zone</th>
+                            <th>Stop Loss</th>
+                            <th>Target</th>
+                            <th>R/R</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let apiKey = localStorage.getItem('perplexity_api_key') || '';
+        let autoRefreshInterval;
+        
+        // Check if API key exists
+        if (apiKey) {
+            document.getElementById('apiSection').style.display = 'none';
+            fetchData();
+        }
+        
+        function saveApiKey() {
+            const input = document.getElementById('apiKey');
+            apiKey = input.value.trim();
+            if (apiKey) {
+                localStorage.setItem('perplexity_api_key', apiKey);
+                document.getElementById('apiSection').style.display = 'none';
+                fetchData();
+            } else {
+                alert('Please enter a valid API key');
+            }
+        }
+        
+        function calculateScore(q) {
+            let score = 50.0;
+            const price = q.price || 0;
+            const dl = q.dayLow || price;
+            const dh = q.dayHigh || price;
+            const yl = q.yearLow || price;
+            const yh = q.yearHigh || price;
+            const chg = q.changesPercentage || 0;
+            
+            if (dh > dl) {
+                score += (((price - dl) / (dh - dl)) * 100 - 50) * 0.3;
+            }
+            if (yh > yl) {
+                score += (((price - yl) / (yh - yl)) * 100 - 50) * 0.2;
+            }
+            score += Math.min(chg * 3, 20);
+            return Math.min(Math.max(score, 0), 100);
+        }
+        
+        function getSignal(score) {
+            if (score >= 75) return { text: 'STRONG BUY', class: 'strong-buy', badge: 'bg-green', icon: '🟢' };
+            if (score >= 60) return { text: 'BUY', class: 'buy', badge: 'bg-green', icon: '🟢' };
+            if (score >= 40) return { text: 'HOLD', class: 'hold', badge: 'bg-gray', icon: '⚪' };
+            if (score >= 25) return { text: 'SELL', class: 'sell', badge: 'bg-red', icon: '🔴' };
+            return { text: 'STRONG SELL', class: 'strong-sell', badge: 'bg-red', icon: '🔴' };
+        }
+        
+        function calculateEntry(q) {
+            const p = q.price || 0;
+            const dl = q.dayLow || p;
+            const pc = q.previousClose || p;
+            
+            const entryL = dl * 0.995;
+            const entryH = pc * 1.005;
+            const sl = p * 0.95;
+            const tp1 = p * 1.03;
+            const tp2 = p * 1.05;
+            const tp3 = p * 1.10;
+            const rr = p > sl ? ((tp2 - p) / (p - sl)).toFixed(2) : 0;
+            
+            return {
+                entry: `$${entryL.toFixed(2)} - $${entryH.toFixed(2)}`,
+                stop: `$${sl.toFixed(2)}`,
+                tp1: `$${tp1.toFixed(2)}`,
+                tp2: `$${tp2.toFixed(2)}`,
+                tp3: `$${tp3.toFixed(2)}`,
+                rr: rr
+            };
+        }
+        
+        function getRating(score, change) {
+            const ratingScore = score + Math.min(change * 2, 20);
+            if (ratingScore >= 90) return { text: '🔥 EXCEPTIONAL', class: 'metric-value negative' };
+            if (ratingScore >= 75) return { text: '⭐ HIGH', class: 'metric-value' };
+            if (ratingScore >= 60) return { text: '📊 MODERATE', class: 'metric-value' };
+            return { text: '⚠️ LOW', class: 'metric-value' };
+        }
+        
+        async function fetchData() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            
+            try {
+                const response = await fetch('https://api.perplexity.ai/finance/quotes', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ticker_symbols: ['QQQ', 'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'TSLA', 'AMZN', 'AMD'],
+                        fields: ['price', 'changesPercentage', 'volume', 'dayLow', 'dayHigh', 'yearLow', 'yearHigh', 'previousClose']
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const quotes = await response.json();
+                displaySignals(quotes);
+                
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = `Last update: ${now.toLocaleTimeString()}`;
+                
+            } catch (error) {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMsg').textContent = `Error: ${error.message}. Check your API key.`;
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+        
+        function displaySignals(quotes) {
+            const grid = document.getElementById('signalsGrid');
+            const tableBody = document.querySelector('#signalsTable tbody');
+            
+            grid.innerHTML = '';
+            tableBody.innerHTML = '';
+            
+            const signals = quotes.map(q => {
+                const score = calculateScore(q);
+                const signal = getSignal(score);
+                const entry = calculateEntry(q);
+                const rating = getRating(score, q.changesPercentage || 0);
+                
+                return {
+                    ticker: q.symbol,
+                    ...q,
+                    score,
+                    signal,
+                    entry,
+                    rating
+                };
+            }).sort((a, b) => b.score - a.score);
+            
+            // Display cards (top 6)
+            signals.slice(0, 6).forEach(s => {
+                const changeClass = s.changesPercentage >= 0 ? 'positive' : 'negative';
+                const card = document.createElement('div');
+                card.className = `card ${s.signal.class}`;
+                card.innerHTML = `
+                    <div class="ticker">${s.signal.icon} ${s.ticker}</div>
+                    <div class="signal-badge ${s.signal.badge}">${s.signal.text}</div>
+                    <div class="metric">
+                        <div class="metric-label">Momentum Score</div>
+                        <div class="metric-value">${s.score.toFixed(1)}/100</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Price</div>
+                        <div class="metric-value ${changeClass}">$${s.price.toFixed(2)} (${s.changesPercentage >= 0 ? '+' : ''}${s.changesPercentage.toFixed(2)}%)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Opportunity</div>
+                        <div class="${s.rating.class}">${s.rating.text}</div>
+                    </div>
+                    <div class="entry-box">
+                        <h4>🎯 Trade Setup</h4>
+                        <div class="entry-row"><span class="entry-label">Entry:</span><span class="entry-value">${s.entry.entry}</span></div>
+                        <div class="entry-row"><span class="entry-label">Stop:</span><span class="entry-value">${s.entry.stop}</span></div>
+                        <div class="entry-row"><span class="entry-label">Target:</span><span class="entry-value">${s.entry.tp2}</span></div>
+                        <div class="entry-row"><span class="entry-label">R/R:</span><span class="entry-value">${s.entry.rr}:1</span></div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            
+            // Display table
+            signals.forEach(s => {
+                const changeClass = s.changesPercentage >= 0 ? 'positive' : 'negative';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${s.ticker}</strong></td>
+                    <td><span class="signal-badge ${s.signal.badge}">${s.signal.text}</span></td>
+                    <td>${s.score.toFixed(1)}</td>
+                    <td>$${s.price.toFixed(2)}</td>
+                    <td class="${changeClass}">${s.changesPercentage >= 0 ? '+' : ''}${s.changesPercentage.toFixed(2)}%</td>
+                    <td>${s.rating.text}</td>
+                    <td>${s.entry.entry}</td>
+                    <td>${s.entry.stop}</td>
+                    <td>${s.entry.tp2}</td>
+                    <td><strong>${s.entry.rr}:1</strong></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            if (apiKey) fetchData();
+        }, 10000);
+    </script>
+</body>
+</html>
