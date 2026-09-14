@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔵 NASDAQ 100 (US100) Indicator - Live</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0066cc 0%, #003366 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 { font-size: 42px; margin-bottom: 10px; font-weight: 800; }
+        .header .subtitle { font-size: 20px; opacity: 0.95; }
+        .header .index-price {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            background: linear-gradient(90deg, #00ff87, #60efff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .index-change {
+            font-size: 28px;
+            font-weight: bold;
+            padding: 8px 20px;
+            border-radius: 30px;
+            display: inline-block;
+        }
+        .positive { background: rgba(0, 255, 135, 0.2); color: #00ff87; }
+        .negative { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+        
+        .status-bar {
+            background: linear-gradient(90deg, #0066cc, #003366);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-item { display: flex; align-items: center; gap: 10px; color: white; }
+        .live-dot {
+            width: 12px; height: 12px;
+            background: #00ff87;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 10px #00ff87; }
+            50% { opacity: 0.5; box-shadow: 0 0 5px #00ff87; }
+        }
+        
+        .content { padding: 40px; }
+        
+        .signal-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+            border: 3px solid #0066cc;
+        }
+        .signal-box h2 { font-size: 24px; color: #003366; margin-bottom: 15px; }
+        .signal-display {
+            font-size: 48px;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .signal-buy { background: #28a745; color: white; }
+        .signal-sell { background: #dc3545; color: white; }
+        .signal-hold { background: #6c757d; color: white; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+        }
+        .metric-label { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+        .metric-value { font-size: 36px; font-weight: bold; }
+        
+        .levels-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        .levels-section h3 {
+            color: #003366;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .level-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid #0066cc;
+        }
+        .level-label { font-size: 14px; color: #666; margin-bottom: 8px; }
+        .level-value { font-size: 24px; font-weight: bold; color: #003366; }
+        
+        .api-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+        }
+        .api-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .btn {
+            background: linear-gradient(135deg, #0066cc 0%, #003366 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .btn:hover { opacity: 0.9; }
+        
+        .loading { text-align: center; padding: 60px; font-size: 24px; color: #666; }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔵 NASDAQ 100 (US100)</h1>
+            <p class="subtitle">Real-Time Index Indicator • Auto-updates every 10 seconds</p>
+            <div id="indexPrice" class="index-price">Loading...</div>
+            <div id="indexChange" class="index-change">--</div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="live-dot"></div>
+                <span><strong>LIVE</strong> • NASDAQ 100 Index Tracking</span>
+            </div>
+            <div class="status-item">
+                <span id="lastUpdate">Last update: --:--:--</span>
+                <button class="btn" onclick="fetchData()" id="refreshBtn">🔄 Refresh</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div id="apiSection" class="api-warning">
+                <h3>🔑 Step 1: Enter Your Perplexity API Key</h3>
+                <p style="margin: 10px 0;">Get your FREE API key: <a href="https://www.perplexity.ai/settings/api" target="_blank" style="color: #0066cc;">https://www.perplexity.ai/settings/api</a></p>
+                <input type="password" id="apiKey" class="api-input" placeholder="Paste your API key here (pplx-...)">
+                <button class="btn" onclick="saveApiKey()">💾 Save & Start</button>
+            </div>
+            
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <div>Scanning NASDAQ 100...</div>
+            </div>
+            
+            <div id="error" class="api-warning" style="display: none; background: #f8d7da; border-left-color: #dc3545;">
+                <h3>❌ Error</h3>
+                <p id="errorMsg"></p>
+            </div>
+            
+            <div id="signalBox" class="signal-box" style="display: none;">
+                <h2>🎯 Current Signal</h2>
+                <div id="signalDisplay" class="signal-display">--</div>
+                <div id="signalText" style="font-size: 18px; margin-top: 10px; color: #666;">--</div>
+            </div>
+            
+            <div id="metricsGrid" class="metrics-grid" style="display: none;">
+                <div class="metric-card">
+                    <div class="metric-label">Momentum Score</div>
+                    <div class="metric-value" id="momentumScore">--/100</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">52-Week Position</div>
+                    <div class="metric-value" id="weekPosition">--%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Trend Strength</div>
+                    <div class="metric-value" id="trendStrength">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Volatility</div>
+                    <div class="metric-value" id="volatility">--</div>
+                </div>
+            </div>
+            
+            <div id="levelsSection" class="levels-section" style="display: none;">
+                <h3>📊 Key Levels & Trade Setup</h3>
+                <div class="levels-grid">
+                    <div class="level-box">
+                        <div class="level-label">🎯 Entry Zone</div>
+                        <div class="level-value" id="entryZone">--</div>
+                    </div>
+                    <div class="level-box">
+                        <div class="level-label">🛑 Stop Loss</div>
+                        <div class="level-value" id="stopLoss" style="color: #dc3545;">--</div>
+                    </div>
+                    <div class="level-box">
+                        <div class="level-label">📈 Target 1</div>
+                        <div class="level-value" id="target1" style="color: #28a745;">--</div>
+                    </div>
+                    <div class="level-box">
+                        <div class="level-label">📈 Target 2</div>
+                        <div class="level-value" id="target2" style="color: #28a745;">--</div>
+                    </div>
+                    <div class="level-box">
+                        <div class="level-label">📈 Target 3</div>
+                        <div class="level-value" id="target3" style="color: #28a745;">--</div>
+                    </div>
+                    <div class="level-box">
+                        <div class="level-label">⚖️ Risk/Reward</div>
+                        <div class="level-value" id="riskReward">--:1</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let apiKey = localStorage.getItem('perplexity_api_key') || '';
+        if (apiKey) {
+            document.getElementById('apiSection').style.display = 'none';
+            fetchData();
+        }
+        
+        function saveApiKey() {
+            const input = document.getElementById('apiKey');
+            apiKey = input.value.trim();
+            if (apiKey) {
+                localStorage.setItem('perplexity_api_key', apiKey);
+                document.getElementById('apiSection').style.display = 'none';
+                fetchData();
+            } else {
+                alert('Please enter a valid API key');
+            }
+        }
+        
+        function calculateMetrics(q) {
+            const price = q.price || 0;
+            const dl = q.dayLow || price;
+            const dh = q.dayHigh || price;
+            const yl = q.yearLow || price;
+            const yh = q.yearHigh || price;
+            const chg = q.changesPercentage || 0;
+            
+            // 52-week position
+            const weekPos = yh > yl ? ((price - yl) / (yh - yl)) * 100 : 50;
+            
+            // Day range position
+            const dayPos = dh > dl ? ((price - dl) / (dh - dl)) * 100 : 50;
+            
+            // Momentum score
+            let momentum = 50 + (dayPos - 50) * 0.3 + (weekPos - 50) * 0.2 + Math.min(chg * 3, 20);
+            momentum = Math.min(Math.max(momentum, 0), 100);
+            
+            // Trend strength
+            let trend = 'NEUTRAL';
+            if (weekPos > 70 && chg > 0) trend = 'STRONG UPTREND';
+            else if (weekPos > 50 && chg > 0) trend = 'UPTREND';
+            else if (weekPos < 30 && chg < 0) trend = 'STRONG DOWNTREND';
+            else if (weekPos < 50 && chg < 0) trend = 'DOWNTREND';
+            
+            // Volatility
+            const volatility = ((yh - yl) / yl) * 100;
+            let volRating = volatility > 40 ? 'HIGH' : volatility > 25 ? 'MODERATE' : 'LOW';
+            
+            // Signal
+            let signal = 'HOLD';
+            if (momentum >= 70) signal = 'STRONG BUY';
+            else if (momentum >= 60) signal = 'BUY';
+            else if (momentum <= 30) signal = 'STRONG SELL';
+            else if (momentum <= 40) signal = 'SELL';
+            
+            // Entry levels
+            const entryLow = dl * 0.995;
+            const entryHigh = (q.previousClose || price) * 1.005;
+            const stopLoss = price * 0.97;
+            const tp1 = price * 1.02;
+            const tp2 = price * 1.04;
+            const tp3 = price * 1.07;
+            const rr = price > stopLoss ? ((tp2 - price) / (price - stopLoss)).toFixed(2) : 0;
+            
+            return {
+                price,
+                weekPos,
+                dayPos,
+                momentum,
+                trend,
+                volRating,
+                signal,
+                entryLow,
+                entryHigh,
+                stopLoss,
+                tp1,
+                tp2,
+                tp3,
+                rr
+            };
+        }
+        
+        async function fetchData() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            
+            try {
+                const response = await fetch('https://api.perplexity.ai/finance/quotes', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ticker_symbols: ['QQQ'],
+                        fields: ['price', 'changesPercentage', 'dayLow', 'dayHigh', 'yearLow', 'yearHigh', 'previousClose']
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const quotes = await response.json();
+                if (quotes && quotes.length > 0) {
+                    displayData(quotes[0]);
+                } else {
+                    throw new Error('No data received');
+                }
+                
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = `Last update: ${now.toLocaleTimeString()}`;
+                
+            } catch (error) {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMsg').textContent = `Error: ${error.message}. Check your API key.`;
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+        
+        function displayData(q) {
+            const m = calculateMetrics(q);
+            
+            // Index price and change
+            document.getElementById('indexPrice').textContent = `$${m.price.toFixed(2)}`;
+            const changeEl = document.getElementById('indexChange');
+            changeEl.textContent = `${q.changesPercentage >= 0 ? '+' : ''}${q.changesPercentage.toFixed(2)}%`;
+            changeEl.className = `index-change ${q.changesPercentage >= 0 ? 'positive' : 'negative'}`;
+            
+            // Signal
+            document.getElementById('signalBox').style.display = 'block';
+            const signalEl = document.getElementById('signalDisplay');
+            signalEl.textContent = m.signal;
+            signalEl.className = 'signal-display ' + (m.signal.includes('BUY') ? 'signal-buy' : m.signal.includes('SELL') ? 'signal-sell' : 'signal-hold');
+            document.getElementById('signalText').textContent = `Momentum: ${m.momentum.toFixed(1)}/100 • ${m.trend}`;
+            
+            // Metrics
+            document.getElementById('metricsGrid').style.display = 'block';
+            document.getElementById('momentumScore').textContent = `${m.momentum.toFixed(1)}/100`;
+            document.getElementById('weekPosition').textContent = `${m.weekPos.toFixed(1)}%`;
+            document.getElementById('trendStrength').textContent = m.trend;
+            document.getElementById('volatility').textContent = m.volRating;
+            
+            // Levels
+            document.getElementById('levelsSection').style.display = 'block';
+            document.getElementById('entryZone').textContent = `$${m.entryLow.toFixed(2)} - $${m.entryHigh.toFixed(2)}`;
+            document.getElementById('stopLoss').textContent = `$${m.stopLoss.toFixed(2)}`;
+            document.getElementById('target1').textContent = `$${m.tp1.toFixed(2)}`;
+            document.getElementById('target2').textContent = `$${m.tp2.toFixed(2)}`;
+            document.getElementById('target3').textContent = `$${m.tp3.toFixed(2)}`;
+            document.getElementById('riskReward').textContent = `${m.rr}:1`;
+        }
+        
+        setInterval(() => { if (apiKey) fetchData(); }, 10000);
+    </script>
+</body>
+</html>
